@@ -4,6 +4,12 @@ CEP panel for After Effects and Premiere Pro that pulls video or audio from any
 site yt-dlp supports (YouTube, Facebook, Instagram, TikTok, X, Vimeo, ...) and
 drops it straight into the open project.
 
+## Download
+
+Latest Windows and Mac `.zxp` packages are on the
+[Releases page](https://github.com/gregkash16/snag/releases/latest). Install steps in
+[INSTALL.md](INSTALL.md).
+
 ## Features
 
 - Video or **audio-only** (WAV / MP3 320k / M4A / FLAC)
@@ -26,7 +32,8 @@ client/runtime.js   Windows/macOS abstraction: bundled-binary install, which, ki
 client/main.js      panel logic
 host/host.jsx       ExtendScript import bridge (snagImport)
 bin/win/            yt-dlp.exe, ffmpeg.exe, deno.exe      (gitignored; get-bins.ps1)
-bin/mac/            yt-dlp, ffmpeg, deno-arm64, deno-x64  (gitignored; get-bins.sh, run on a Mac)
+bin/mac/            yt-dlp (universal), ffmpeg-arm64, ffmpeg-x64, deno-arm64, deno-x64
+                    (gitignored; get-bins.sh, run on a Mac; panel picks the -arm64/-x64 one)
 .debug              Chrome remote debug: AE :8088, PPro :8089
 ```
 
@@ -54,6 +61,8 @@ Debug the panel at `http://localhost:8088` (AE) in Chrome while it is open.
 Both sign with a self-signed "CEP Panels" cert kept outside the repo
 (`%LOCALAPPDATA%\cep-tools` / `~/.cep-tools`, created on first run). Friends
 install with the aescripts ZXP/UXP Installer; see INSTALL.md.
+Upload both `.zxp` files to a GitHub release (`gh release upload v<v> dist/*.zxp`) so friends
+can grab them from the Releases page.
 
 ## Notes
 

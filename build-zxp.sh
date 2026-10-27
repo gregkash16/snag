@@ -8,7 +8,7 @@ TOOLS="$HOME/.cep-tools"
 SIGN="$TOOLS/ZXPSignCmd"
 CERT="$TOOLS/cep-selfsigned.p12"
 PWF="$TOOLS/cep-selfsigned.pw"
-REQUIRED_BINS=(yt-dlp ffmpeg deno-arm64 deno-x64)
+REQUIRED_BINS=(yt-dlp ffmpeg-arm64 ffmpeg-x64 deno-arm64 deno-x64)
 
 mkdir -p "$TOOLS"
 if [ ! -x "$SIGN" ]; then
@@ -18,7 +18,7 @@ if [ ! -x "$SIGN" ]; then
   xattr -d com.apple.quarantine "$SIGN" 2>/dev/null || true
 fi
 if [ ! -f "$CERT" ]; then
-  PW="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24)"
+  PW="$(head -c 400 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c1-24)"
   "$SIGN" -selfSignedCert US NY "CEP Panels" "CEP Panels" "$PW" "$CERT"
   printf '%s' "$PW" > "$PWF"
   echo "Created self-signed certificate $CERT"

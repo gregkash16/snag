@@ -3,7 +3,8 @@
 Snag is a panel for After Effects and Premiere Pro (2024 or newer) that grabs
 video or audio from a URL and drops it into your project. Windows and macOS.
 
-Pick the file for your computer:
+Download from the [Releases page](https://github.com/gregkash16/snag/releases/latest)
+and pick the file for your computer:
 
 - Windows: `Snag-<version>-win.zxp`
 - Mac: `Snag-<version>-mac.zxp` (Apple Silicon and Intel)
@@ -32,8 +33,7 @@ on Mac) so they can update themselves later.
 - Blank panel after install? Known Adobe quirk: run the host app once as
   Administrator (Windows) or from an admin account (Mac), open the panel, then
   go back to normal.
-- Mac, Intel: nothing extra. Mac, Apple Silicon: if ffmpeg complains about
-  Rosetta, run `softwareupdate --install-rosetta` once in Terminal.
+- Mac: the bundled tools are native on both Apple Silicon and Intel. No Rosetta needed.
 
 ## Uninstall
 
