@@ -1,25 +1,21 @@
-/* Snag — grab video/audio from the web straight into AE / Premiere. */
+/* Snag — grab video/audio from the web straight into AE / Premiere. Windows + macOS. */
 (function () {
   "use strict";
 
   var cs = new CSInterface();
-  var nodeReq = (window.cep_node && window.cep_node.require) ? window.cep_node.require : require;
-  var fs = nodeReq("fs");
-  var path = nodeReq("path");
-  var os = nodeReq("os");
-  var cp = nodeReq("child_process");
+  var R = Runtime;
+  var fs = R.fs, path = R.path, cp = R.cp;
 
   var EXT_ROOT = cs.getSystemPath(SystemPath.EXTENSION);
-  var BIN = path.join(EXT_ROOT, "bin");
-  var YTDLP = path.join(BIN, "yt-dlp.exe");
-  var FFMPEG = firstExisting([
-    path.join(BIN, "ffmpeg.exe"),
-    "C:\\ffmpeg\\bin\\ffmpeg.exe",
-    "C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe"
-  ]) || whereExe("ffmpeg") || "ffmpeg";
-  var JS_RUNTIME = detectJsRuntime(); // "node:C:\...\node.exe" | "deno:..." | null
-  var DEFAULT_DEST = path.join(os.homedir(), "Videos", "Snag");
+  var APP = "Snag";
   var PROJECT_BIN = "Snag";
+
+  // bundled binaries → per-user folder (yt-dlp can self-update there; mac exec bits fixed)
+  var BINS = R.ensureBins(EXT_ROOT, APP, ["yt-dlp", "ffmpeg", "deno"]);
+  var YTDLP = BINS.bins["yt-dlp"];
+  var FFMPEG = R.findTool("ffmpeg", BINS.bins.ffmpeg) || "ffmpeg";
+  var JS_RUNTIME = detectJsRuntime(); // "deno:<path>" | "node:<path>" | null
+  var DEFAULT_DEST = R.defaultMediaDir(APP);
 
   var $ = function (id) { return document.getElementById(id); };
   var el = {
@@ -108,32 +104,13 @@
     setBusy(false);
   }
 
-  /* ---------- fs / env ---------- */
-  function firstExisting(list) {
-    for (var i = 0; i < list.length; i++) {
-      try { if (fs.existsSync(list[i])) return list[i]; } catch (e) {}
-    }
-    return null;
-  }
-  function whereExe(name) {
-    try {
-      var r = cp.spawnSync("where.exe", [name], { windowsHide: true, encoding: "utf8" });
-      if (r.status === 0 && r.stdout) {
-        var first = r.stdout.split(/\r?\n/).filter(Boolean)[0];
-        if (first && fs.existsSync(first)) return first;
-      }
-    } catch (e) {}
-    return null;
-  }
+  /* ---------- env ---------- */
   function detectJsRuntime() {
-    var deno = firstExisting([path.join(BIN, "deno.exe")]) || whereExe("deno");
+    var deno = BINS.bins.deno || R.which("deno");
     if (deno) return "deno:" + deno;
-    var node = firstExisting([path.join(BIN, "node.exe"), "C:\\Program Files\\nodejs\\node.exe"]) || whereExe("node");
+    var node = R.findTool("node", null);
     if (node) return "node:" + node;
     return null;
-  }
-  function ensureDir(d) {
-    try { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); return true; } catch (e) { return false; }
   }
   function safeUnlink(p) { try { if (p && fs.existsSync(p)) fs.unlinkSync(p); } catch (e) {} }
   function run(exe, args, onLine) {
@@ -141,7 +118,7 @@
       var out = "", err = "";
       var child;
       try {
-        child = cp.spawn(exe, args, { windowsHide: true });
+        child = cp.spawn(exe, args, { windowsHide: true, env: R.spawnEnv() });
       } catch (e) { return resolve({ code: -1, out: "", err: String(e) }); }
       state.child = child;
       var bufs = { o: "", e: "" };
@@ -165,11 +142,7 @@
       });
     });
   }
-  function killChild() {
-    if (!state.child) return;
-    try { cp.spawnSync("taskkill", ["/pid", String(state.child.pid), "/T", "/F"], { windowsHide: true }); } catch (e) {}
-    try { state.child.kill(); } catch (e) {}
-  }
+  function killChild() { R.killTree(state.child); }
 
   /* ---------- time parsing ---------- */
   function parseTime(s) {
@@ -306,7 +279,7 @@
       if (/^\[Merger\]/.test(line)) { status("Merging audio + video…"); return; }
       if (/^\[ExtractAudio\]/.test(line)) { status("Extracting audio…"); return; }
       if (/Extracting URL/.test(line)) { status("Resolving URL…"); return; }
-      if (!isErr && /^[A-Za-z]:\\/.test(line.trim())) finalPath = line.trim();
+      if (!isErr && R.isAbsPathLine(line)) finalPath = line.trim();
     }).then(function (r) {
       if (state.cancelled) return null;
       if (r.code !== 0) {
@@ -336,10 +309,10 @@
   function go() {
     var url = el.url.value.trim();
     if (!/^https?:\/\//i.test(url)) return fail("Paste a valid http(s) URL first.");
-    if (!fs.existsSync(YTDLP)) return fail("yt-dlp.exe missing from " + BIN + " (run get-ytdlp.cmd)");
+    if (!YTDLP || !fs.existsSync(YTDLP)) return fail("yt-dlp is missing from " + R.bundledBinDir(EXT_ROOT) + " (run get-bins)");
 
     var dest = el.dest.value.trim() || DEFAULT_DEST;
-    if (!ensureDir(dest)) return fail("Cannot create folder: " + dest);
+    if (!R.mkdirp(dest)) return fail("Cannot create folder: " + dest);
 
     var opts = {
       url: url, dest: dest, mode: state.mode,
@@ -364,7 +337,7 @@
     setBusy(true);
     setProgress(0);
     status("Starting…");
-    if (!JS_RUNTIME) log("NOTE: no node/deno found; YouTube downloads may be slow or missing formats.");
+    if (!JS_RUNTIME) log("NOTE: no deno/node found; YouTube downloads may be slow or missing formats.");
 
     download(opts).then(function (finalPath) {
       if (state.cancelled || !finalPath) return null;
@@ -411,13 +384,14 @@
 
   /* ---------- misc buttons ---------- */
   function refreshVersion() {
-    if (!fs.existsSync(YTDLP)) { el.ver.textContent = "yt-dlp missing"; return; }
+    if (!YTDLP || !fs.existsSync(YTDLP)) { el.ver.textContent = "yt-dlp missing"; return; }
     run(YTDLP, ["--version"]).then(function (r) {
       var bits = ["yt-dlp " + (r.out.trim() || "?")];
-      if (!path.isAbsolute(FFMPEG) && !whereExe("ffmpeg")) bits.push("ffmpeg NOT FOUND");
+      if (!path.isAbsolute(FFMPEG)) bits.push("ffmpeg NOT FOUND");
       if (!JS_RUNTIME) bits.push("no JS runtime");
+      bits.push(R.platformLabel);
       el.ver.textContent = bits.join(" · ");
-      el.ver.title = "ffmpeg: " + FFMPEG + "\nJS runtime: " + (JS_RUNTIME || "none") + "\next: " + EXT_ROOT;
+      el.ver.title = "yt-dlp: " + YTDLP + "\nffmpeg: " + FFMPEG + "\nJS runtime: " + (JS_RUNTIME || "none") + "\nbin: " + BINS.dir + "\next: " + EXT_ROOT;
     });
   }
   function updateYtdlp() {
@@ -435,43 +409,22 @@
     var start = el.dest.value.trim() || DEFAULT_DEST;
     var res = window.cep.fs.showOpenDialogEx(false, true, "Choose download folder", start, []);
     if (res && res.err === 0 && res.data && res.data.length) {
-      el.dest.value = res.data[0].replace(/\//g, "\\");
+      el.dest.value = R.toNative(res.data[0]);
       saveSettings();
       refreshFolderInfo();
     }
   }
   function browseCookieFile() {
     var cur = el.cookieFile.value.trim();
-    var start = cur ? path.dirname(cur) : os.homedir();
+    var start = cur ? path.dirname(cur) : R.os.homedir();
     var res = window.cep.fs.showOpenDialogEx(false, false, "Choose cookies.txt", start, ["txt"]);
     if (res && res.err === 0 && res.data && res.data.length) {
-      el.cookieFile.value = res.data[0].replace(/\//g, "\\");
+      el.cookieFile.value = R.toNative(res.data[0]);
       saveSettings();
     }
   }
   function destDir() { return el.dest.value.trim() || DEFAULT_DEST; }
-
-  function openFolder() {
-    var d = destDir();
-    ensureDir(d);
-    // 1) CEP's own process API (most reliable inside the panel)
-    try {
-      var winDir = (window.cep_node && window.cep_node.process && window.cep_node.process.env.WINDIR) || "C:\\Windows";
-      var r = window.cep.process.createProcess(winDir + "\\explorer.exe", d);
-      if (r && r.err === 0) return;
-      log("Open folder: cep.process err " + (r ? r.err : "?"));
-    } catch (e) { log("Open folder: cep.process threw " + e); }
-    // 2) file:// URL via the OS shell handler
-    try {
-      var r2 = window.cep.util.openURLInDefaultBrowser("file:///" + d.replace(/\\/g, "/"));
-      if (r2 && r2.err === 0) return;
-      log("Open folder: openURL err " + (r2 ? r2.err : "?"));
-    } catch (e) { log("Open folder: openURL threw " + e); }
-    // 3) Node fallback
-    try {
-      cp.spawn("explorer.exe", [d], { windowsHide: true, stdio: "ignore" }).on("error", function (e) { log("Open folder: spawn " + e.message); });
-    } catch (e) { log("Open folder: spawn threw " + e); }
-  }
+  function openFolder() { R.openFolder(destDir(), log); }
 
   /* ---------- folder housekeeping ---------- */
   function fmtBytes(n) {
@@ -489,6 +442,7 @@
         var st; try { st = fs.statSync(p); } catch (e) { return; }
         if (!st.isFile()) return;
         if (/\.txt$/i.test(name)) return;                 // cookies.txt and notes stay
+        if (name === ".DS_Store") return;
         if (p.toLowerCase() === cookiePath) return;
         out.push({ path: p, size: st.size });
       });
@@ -554,6 +508,7 @@
   el.url.addEventListener("keydown", function (e) { if (e.key === "Enter" && !state.child) go(); });
 
   applySettings();
+  if (BINS.copied.length) log("Installed bundled binaries to " + BINS.dir + ": " + BINS.copied.join(", "));
   refreshVersion();
   refreshFolderInfo();
 })();

@@ -22,24 +22,38 @@ drops it straight into the open project.
 
 ```
 CSXS/manifest.xml   CEP manifest (AEFT + PPRO, CSXS 11)
-client/             panel HTML/CSS/JS (Node enabled via --enable-nodejs)
+client/runtime.js   Windows/macOS abstraction: bundled-binary install, which, kill, reveal folder
+client/main.js      panel logic
 host/host.jsx       ExtendScript import bridge (snagImport)
-bin/yt-dlp.exe      downloader (gitignored, ~23 MB)
+bin/win/            yt-dlp.exe, ffmpeg.exe, deno.exe      (gitignored; get-bins.ps1)
+bin/mac/            yt-dlp, ffmpeg, deno-arm64, deno-x64  (gitignored; get-bins.sh, run on a Mac)
 .debug              Chrome remote debug: AE :8088, PPro :8089
 ```
 
-ffmpeg is looked up in `bin/ffmpeg.exe`, then `C:\ffmpeg\bin`, then PATH.
+On first launch the panel copies `bin/<platform>` to a per-user folder
+(`%LOCALAPPDATA%\Snag\bin` / `~/Library/Application Support/Snag/bin`) and runs
+from there, so `yt-dlp -U` can self-update and macOS gets exec bits + no
+quarantine flag. It re-copies whenever `ExtensionBundleVersion` changes.
+Fallbacks: `C:\ffmpeg\bin`, Homebrew paths, PATH.
 
 ## Install (dev)
 
-1. Enable unsigned panels once (already done on this PC):
-   `HKCU\Software\Adobe\CSXS.11` and `CSXS.12` → `PlayerDebugMode` = `"1"`
-2. Junction the repo into the CEP folder (`install.cmd` does this):
-   `%APPDATA%\Adobe\CEP\extensions\com.gregk.snag` → this folder
-3. Fetch yt-dlp if `bin/yt-dlp.exe` is missing (`get-ytdlp.cmd`).
+1. Enable unsigned panels once: `PlayerDebugMode` = `"1"` under
+   `HKCU\Software\Adobe\CSXS.11` and `CSXS.12` (Mac: `defaults write com.adobe.CSXS.11 PlayerDebugMode 1`, same for 12).
+2. Junction/symlink the repo into the CEP extensions folder (`install.cmd` does this on Windows).
+3. `get-bins.ps1` (Windows) or `./get-bins.sh` (Mac) to fetch the binaries.
 4. Restart AE / Premiere → **Window ▸ Extensions ▸ Snag**.
 
 Debug the panel at `http://localhost:8088` (AE) in Chrome while it is open.
+
+## Ship a ZXP
+
+- Windows: `build-zxp.ps1 [version]` → `dist\Snag-<v>-win.zxp`
+- Mac: `./build-zxp.sh [version]` → `dist/Snag-<v>-mac.zxp` (sign on a Mac; Adobe's advice)
+
+Both sign with a self-signed "CEP Panels" cert kept outside the repo
+(`%LOCALAPPDATA%\cep-tools` / `~/.cep-tools`, created on first run). Friends
+install with the aescripts ZXP/UXP Installer; see INSTALL.md.
 
 ## Notes
 

@@ -1,4 +1,8 @@
-bin/*.exe
-bin/yt-dlp*
+bin/win/*
+bin/mac/*
+!bin/win/.gitkeep
+!bin/mac/.gitkeep
 *.part
 Thumbs.db
+.DS_Store
+dist/
