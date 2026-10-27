@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Snag</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="panel">
+
+    <section class="block">
+      <label class="lbl" for="url">URL</label>
+      <div class="row">
+        <input id="url" type="text" placeholder="https://www.youtube.com/watch?v=..." spellcheck="false" autocomplete="off">
+        <button id="pasteBtn" class="btn ghost" title="Paste from clipboard">Paste</button>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="seg" id="modeSeg">
+        <button class="seg-btn active" data-mode="video">Video</button>
+        <button class="seg-btn" data-mode="audio">Audio only</button>
+      </div>
+    </section>
+
+    <section class="block" id="videoOpts">
+      <div class="row two">
+        <div>
+          <label class="lbl" for="quality">Max resolution</label>
+          <select id="quality">
+            <option value="0">Best available</option>
+            <option value="2160">2160p</option>
+            <option value="1440">1440p</option>
+            <option value="1080" selected>1080p</option>
+            <option value="720">720p</option>
+            <option value="480">480p</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl" for="vcontainer">Deliver as</label>
+          <select id="vcontainer">
+            <option value="mp4" selected>MP4 (prefer H.264)</option>
+            <option value="prores">ProRes 422 MOV</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="block hidden" id="audioOpts">
+      <label class="lbl" for="aformat">Audio format</label>
+      <select id="aformat">
+        <option value="wav" selected>WAV (PCM)</option>
+        <option value="mp3">MP3 (320k)</option>
+        <option value="m4a">M4A (original AAC)</option>
+        <option value="flac">FLAC</option>
+      </select>
+    </section>
+
+    <section class="block">
+      <label class="chk"><input type="checkbox" id="trimChk"> Trim to in / out</label>
+      <div class="row two" id="trimRow">
+        <div>
+          <label class="lbl" for="inPt">In</label>
+          <input id="inPt" type="text" placeholder="0:00" disabled>
+        </div>
+        <div>
+          <label class="lbl" for="outPt">Out</label>
+          <input id="outPt" type="text" placeholder="end" disabled>
+        </div>
+      </div>
+      <div class="hint">Use seconds or h:mm:ss. Leave blank for start / end.</div>
+    </section>
+
+    <section class="block">
+      <label class="lbl" for="dest">Save to</label>
+      <div class="row">
+        <input id="dest" type="text" spellcheck="false">
+        <button id="browseBtn" class="btn ghost">…</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="importChk" checked> Import into project</label>
+    </section>
+
+    <section class="block">
+      <label class="lbl" for="cookies">Login cookies (for Instagram / Facebook)</label>
+      <select id="cookies">
+        <option value="" selected>None</option>
+        <option value="chrome">Chrome (must be closed)</option>
+        <option value="edge">Edge (must be closed)</option>
+        <option value="brave">Brave (must be closed)</option>
+        <option value="firefox">Firefox</option>
+        <option value="file">cookies.txt file…</option>
+      </select>
+      <div class="row hidden" id="cookieFileRow">
+        <input id="cookieFile" type="text" placeholder="C:\path\to\cookies.txt" spellcheck="false">
+        <button id="cookieBrowseBtn" class="btn ghost">…</button>
+      </div>
+      <div class="hint" id="cookieHint">Chromium browsers lock their cookie DB while running. Export a cookies.txt with a browser extension to avoid that.</div>
+    </section>
+
+    <section class="block actions">
+      <button id="goBtn" class="btn primary">Snag it</button>
+      <button id="cancelBtn" class="btn danger hidden">Cancel</button>
+    </section>
+
+    <section class="block progress-block">
+      <div class="bar"><div class="fill" id="fill"></div></div>
+      <div class="status" id="status">Ready</div>
+    </section>
+
+    <section class="block">
+      <details id="logDetails">
+        <summary>Log</summary>
+        <pre id="log"></pre>
+      </details>
+    </section>
+
+    <footer class="foot">
+      <span id="ver">yt-dlp —</span>
+      <span class="spacer"></span>
+      <button id="updateBtn" class="btn tiny">Update yt-dlp</button>
+      <button id="openBtn" class="btn tiny">Open folder</button>
+    </footer>
+
+  </div>
+
+  <script src="CSInterface.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

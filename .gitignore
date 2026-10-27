@@ -1,0 +1,4 @@
+bin/*.exe
+bin/yt-dlp*
+*.part
+Thumbs.db
