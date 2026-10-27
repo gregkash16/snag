@@ -89,7 +89,9 @@ pre#log {
   white-space: pre-wrap; word-break: break-all; user-select: text;
 }
 
-.foot { display: flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 6px; border-top: 1px solid var(--line); font-size: 10px; color: var(--muted); }
+.foot { display: flex; flex-direction: column; gap: 5px; margin-top: auto; padding-top: 6px; border-top: 1px solid var(--line); font-size: 10px; color: var(--muted); }
+.foot-row { display: flex; align-items: center; gap: 6px; }
 .spacer { flex: 1; }
+.btn.tiny.confirm { background: var(--danger); border-color: var(--danger); color: #fff; }
 
 .hidden { display: none !important; }

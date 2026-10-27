@@ -31,7 +31,8 @@
     cookies: $("cookies"), cookieFileRow: $("cookieFileRow"), cookieFile: $("cookieFile"),
     cookieBrowseBtn: $("cookieBrowseBtn"), goBtn: $("goBtn"), cancelBtn: $("cancelBtn"),
     fill: $("fill"), status: $("status"), log: $("log"), logDetails: $("logDetails"),
-    ver: $("ver"), updateBtn: $("updateBtn"), openBtn: $("openBtn")
+    ver: $("ver"), updateBtn: $("updateBtn"), openBtn: $("openBtn"),
+    folderInfo: $("folderInfo"), emptyBtn: $("emptyBtn")
   };
 
   var state = { mode: "video", child: null, cancelled: false };
@@ -85,7 +86,9 @@
     el.goBtn.classList.toggle("hidden", busy);
     el.cancelBtn.classList.toggle("hidden", !busy);
     el.updateBtn.disabled = busy;
+    el.emptyBtn.disabled = busy;
     el.url.disabled = busy;
+    if (!busy) refreshFolderInfo();
   }
   function setProgress(pct, cls) {
     el.fill.style.width = Math.max(0, Math.min(100, pct)) + "%";
@@ -434,6 +437,7 @@
     if (res && res.err === 0 && res.data && res.data.length) {
       el.dest.value = res.data[0].replace(/\//g, "\\");
       saveSettings();
+      refreshFolderInfo();
     }
   }
   function browseCookieFile() {
@@ -445,10 +449,82 @@
       saveSettings();
     }
   }
+  function destDir() { return el.dest.value.trim() || DEFAULT_DEST; }
+
   function openFolder() {
-    var d = el.dest.value.trim() || DEFAULT_DEST;
+    var d = destDir();
     ensureDir(d);
-    try { cp.spawn("explorer.exe", [d], { detached: true, windowsHide: true }).unref(); } catch (e) {}
+    // 1) CEP's own process API (most reliable inside the panel)
+    try {
+      var winDir = (window.cep_node && window.cep_node.process && window.cep_node.process.env.WINDIR) || "C:\\Windows";
+      var r = window.cep.process.createProcess(winDir + "\\explorer.exe", d);
+      if (r && r.err === 0) return;
+      log("Open folder: cep.process err " + (r ? r.err : "?"));
+    } catch (e) { log("Open folder: cep.process threw " + e); }
+    // 2) file:// URL via the OS shell handler
+    try {
+      var r2 = window.cep.util.openURLInDefaultBrowser("file:///" + d.replace(/\\/g, "/"));
+      if (r2 && r2.err === 0) return;
+      log("Open folder: openURL err " + (r2 ? r2.err : "?"));
+    } catch (e) { log("Open folder: openURL threw " + e); }
+    // 3) Node fallback
+    try {
+      cp.spawn("explorer.exe", [d], { windowsHide: true, stdio: "ignore" }).on("error", function (e) { log("Open folder: spawn " + e.message); });
+    } catch (e) { log("Open folder: spawn threw " + e); }
+  }
+
+  /* ---------- folder housekeeping ---------- */
+  function fmtBytes(n) {
+    if (n < 1024) return n + " B";
+    var u = ["KB", "MB", "GB", "TB"], i = -1;
+    do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
+    return n.toFixed(n >= 100 ? 0 : 1) + " " + u[i];
+  }
+  function deletableFiles(d) {
+    var cookiePath = el.cookieFile.value.trim().toLowerCase();
+    var out = [];
+    try {
+      fs.readdirSync(d).forEach(function (name) {
+        var p = path.join(d, name);
+        var st; try { st = fs.statSync(p); } catch (e) { return; }
+        if (!st.isFile()) return;
+        if (/\.txt$/i.test(name)) return;                 // cookies.txt and notes stay
+        if (p.toLowerCase() === cookiePath) return;
+        out.push({ path: p, size: st.size });
+      });
+    } catch (e) {}
+    return out;
+  }
+  function refreshFolderInfo() {
+    var files = deletableFiles(destDir());
+    var bytes = files.reduce(function (s, f) { return s + f.size; }, 0);
+    el.folderInfo.textContent = files.length ? files.length + " file" + (files.length === 1 ? "" : "s") + " · " + fmtBytes(bytes) : "folder empty";
+    el.folderInfo.title = destDir();
+    el.emptyBtn.disabled = files.length === 0;
+  }
+  var emptyArmed = null;
+  function disarmEmpty() {
+    if (emptyArmed) { clearTimeout(emptyArmed); emptyArmed = null; }
+    el.emptyBtn.textContent = "Empty folder";
+    el.emptyBtn.classList.remove("confirm");
+  }
+  function emptyFolder() {
+    var files = deletableFiles(destDir());
+    if (!files.length) { refreshFolderInfo(); return; }
+    if (!emptyArmed) {
+      el.emptyBtn.textContent = "Delete " + files.length + " file" + (files.length === 1 ? "" : "s") + "?";
+      el.emptyBtn.classList.add("confirm");
+      emptyArmed = setTimeout(disarmEmpty, 4000);
+      return;
+    }
+    disarmEmpty();
+    var n = 0, bytes = 0, failed = 0;
+    files.forEach(function (f) {
+      try { fs.unlinkSync(f.path); n++; bytes += f.size; } catch (e) { failed++; log("Could not delete: " + f.path); }
+    });
+    status("Deleted " + n + " file" + (n === 1 ? "" : "s") + " (" + fmtBytes(bytes) + ")" + (failed ? ", " + failed + " in use" : "") + ". Imported footage in open projects is now offline.");
+    setProgress(0);
+    refreshFolderInfo();
   }
   function pasteUrl() {
     el.url.focus();
@@ -467,7 +543,8 @@
   el.cookies.addEventListener("change", function () { syncCookies(); saveSettings(); });
   el.cookieFile.addEventListener("change", saveSettings);
   el.cookieBrowseBtn.addEventListener("click", browseCookieFile);
-  el.dest.addEventListener("change", saveSettings);
+  el.dest.addEventListener("change", function () { saveSettings(); refreshFolderInfo(); });
+  el.emptyBtn.addEventListener("click", emptyFolder);
   el.goBtn.addEventListener("click", go);
   el.cancelBtn.addEventListener("click", cancel);
   el.pasteBtn.addEventListener("click", pasteUrl);
@@ -478,4 +555,5 @@
 
   applySettings();
   refreshVersion();
+  refreshFolderInfo();
 })();

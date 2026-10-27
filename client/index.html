@@ -115,10 +115,17 @@
     </section>
 
     <footer class="foot">
-      <span id="ver">yt-dlp —</span>
-      <span class="spacer"></span>
-      <button id="updateBtn" class="btn tiny">Update yt-dlp</button>
-      <button id="openBtn" class="btn tiny">Open folder</button>
+      <div class="foot-row">
+        <span id="folderInfo">—</span>
+        <span class="spacer"></span>
+        <button id="openBtn" class="btn tiny">Open folder</button>
+        <button id="emptyBtn" class="btn tiny" title="Delete every downloaded file in the Save-to folder (cookies.txt and other .txt files are kept)">Empty folder</button>
+      </div>
+      <div class="foot-row">
+        <span id="ver">yt-dlp —</span>
+        <span class="spacer"></span>
+        <button id="updateBtn" class="btn tiny">Update yt-dlp</button>
+      </div>
     </footer>
 
   </div>
